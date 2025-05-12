@@ -1,47 +1,30 @@
-/*
- * LED blink with FreeRTOS
- */
-#include <FreeRTOS.h>
-#include <task.h>
-#include <semphr.h>
-#include <queue.h>
-
-#include "pico/stdlib.h"
+#include "mpu6050.h"
 #include <stdio.h>
-
-struct led_task_arg {
-    int gpio;
-    int delay;
-};
-
-void led_task(void *p) {
-    struct led_task_arg *a = (struct led_task_arg *)p;
-
-    gpio_init(a->gpio);
-    gpio_set_dir(a->gpio, GPIO_OUT);
-    while (true) {
-        gpio_put(a->gpio, 1);
-        vTaskDelay(pdMS_TO_TICKS(a->delay));
-        gpio_put(a->gpio, 0);
-        vTaskDelay(pdMS_TO_TICKS(a->delay));
-    }
-}
 
 int main() {
     stdio_init_all();
-    printf("Start LED blink\n");
 
-    struct led_task_arg arg1 = {20, 100};
-    xTaskCreate(led_task, "LED_Task 1", 256, &arg1, 1, NULL);
+    // MPU
+    imu_c imu_config;
 
-    struct led_task_arg arg2 = {21, 200};
-    xTaskCreate(led_task, "LED_Task 2", 256, &arg2, 1, NULL);
+    // geral
+    mpu6050_set_config(&imu_config, i2c_default, 4, 5, 0);
+    mpu6050_init(imu_config);
 
-    struct led_task_arg arg3 = {22, 300};
-    xTaskCreate(led_task, "LED_Task 3", 256, &arg3, 1, NULL);
+    while (1) {
+        int16_t accel[3];
+        int16_t gyro[3];
+        int16_t tmp;
 
-    vTaskStartScheduler();
+        mpu6050_read_acc(imu_config, accel);
+        mpu6050_read_gyro(imu_config, gyro);
+        mpu6050_read_temp(imu_config, &tmp);
 
-    while (true)
-        ;
+        printf("Acelerômetro: X: %d, Y: %d, Z: %d\n", accel[0], accel[1], accel[2]);
+        printf("Giroscópio: X: %d, Y: %d, Z: %d\n", gyro[0], gyro[1], gyro[2]);
+        printf("Temperatura: %d\n", tmp);
+        sleep_ms(1000);
+    }
+
+    return 0;
 }
